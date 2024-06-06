@@ -6,6 +6,10 @@ import time
 import argparse
 from totp import totp  # Import the totp function from totp.py
 
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
+
 CONFIG_FILE = "./config.json"
 IP_FILE = "./IP"
 LOG_FILE = "./hover-update.log"
