@@ -6,10 +6,10 @@ import time
 import argparse
 from totp import totp  # Import the totp function from totp.py
 
-CONFIG_FILE = "/home/pj/hover-update/config.json"
-IP_FILE = "/home/pj/hover-update/IP"
-LOG_FILE = "/home/pj/hover-update/hover-update.log"
-COOKIES_FILE = "/home/pj/hover-update/cookies.json"
+CONFIG_FILE = "./config.json"
+IP_FILE = "./IP"
+LOG_FILE = "./hover-update.log"
+COOKIES_FILE = "./cookies.json"
 AUTH1URL = "https://www.hover.com/signin/auth.json"
 AUTH2URL = "https://www.hover.com/signin/auth2.json"
 DNS_UPDATE_URL = "https://www.hover.com/api/dns/{}"
