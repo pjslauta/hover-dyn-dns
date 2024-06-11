@@ -6,6 +6,10 @@ import time
 import argparse
 from totp import totp  # Import the totp function from totp.py
 
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
+
 CONFIG_FILE = "./config.json"
 IP_FILE = "./IP"
 LOG_FILE = "./hover-update.log"
@@ -145,10 +149,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Hover DNS Update Script')
     parser.add_argument('--logging', action='store_true', help='Enable logging to hover-update.log')
     parser.add_argument('--mitm', action='store_true', help='Enable mitmproxy for HTTP/HTTPS requests')
+    parser.add_argument('--getDNS', action='store_true', help='Get the DNS Records in this account')
     args = parser.parse_args()
     logging = args.logging
     proxies = DEFAULT_PROXIES if args.mitm else None
 
+    if(args.getDNS):
+        login()
+        login2fa()
+        dnsRecords=getDNS()
+        for(record in dnsRecords)
+        {
+            
+        }
     # Check and delete log file if older than 7 days
     if os.path.isfile(LOG_FILE):
         log_age = (datetime.datetime.now() - datetime.datetime.fromtimestamp(os.path.getmtime(LOG_FILE))).days
