@@ -17,7 +17,9 @@ COOKIES_FILE = "./cookies.json"
 AUTH1URL = "https://www.hover.com/signin/auth.json"
 AUTH2URL = "https://www.hover.com/signin/auth2.json"
 DNS_UPDATE_URL = "https://www.hover.com/api/dns/{}"
-DOMAIN_CHECK_URL = "https://www.hover.com/api/control_panel/domains"
+DOMAIN_CHECK_URL = "https://www.hover.com/api/domains"
+DNS_ENTRIES_URL = "https://www.hover.com/api/dns"
+DNS_SUBENTRIES_URL = "https://www.hover.com/api/control_panel/dns/"
 
 # Proxy settings for mitmproxy
 DEFAULT_PROXIES = {
@@ -144,24 +146,39 @@ def cookies_valid(cookies, proxies):
         return True
     return False
 
+def get_dns_entries(cookies, proxies):
+    """
+    Retrieves the DNS entries for the account.
+    """
+    response = requests.get(DNS_ENTRIES_URL, cookies=cookies, proxies=proxies, verify=False)
+    if response.status_code == 200:
+        dns_entries = response.json()
+        for entry in dns_entries['domains']:
+            print('================')
+            print(f"Domain: {entry['domain_name']}, DNSID: {entry['id']}")
+            url=DNS_SUBENTRIES_URL+entry['domain_name']
+            response=requests.get(url, cookies=cookies)
+            if response.status_code==200:
+                print("Subdomains:")
+                subdomains=response.json()
+                for e in subdomains['domain']['dns']:
+                    print(f"Domain: {e['name']}, DNSID: {e['id']}")
+            else:
+                print(f"No subdomains found for {url}")            
+    else:
+        print(f"Failed to retrieve DNS entries. Status code: {response.status_code}, Response text: {response.text}", logging)
+        exit(4)
+
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Hover DNS Update Script')
     parser.add_argument('--logging', action='store_true', help='Enable logging to hover-update.log')
     parser.add_argument('--mitm', action='store_true', help='Enable mitmproxy for HTTP/HTTPS requests')
-    parser.add_argument('--getDNS', action='store_true', help='Get the DNS Records in this account')
+    parser.add_argument('--getDNSID', action='store_true', help='Retrieve DNS entries for the account')
     args = parser.parse_args()
     logging = args.logging
     proxies = DEFAULT_PROXIES if args.mitm else None
 
-    if(args.getDNS):
-        login()
-        login2fa()
-        dnsRecords=getDNS()
-        for(record in dnsRecords)
-        {
-            
-        }
     # Check and delete log file if older than 7 days
     if os.path.isfile(LOG_FILE):
         log_age = (datetime.datetime.now() - datetime.datetime.fromtimestamp(os.path.getmtime(LOG_FILE))).days
@@ -186,6 +203,51 @@ if __name__ == "__main__":
     srcdomain = config.get('srcdomain')
     ipaddress = config.get('ipaddress')
     totp_secret = config.get('totp_secret')
+
+    # Initialize session to retrieve cookies
+    session_cookies = init_session(proxies)
+
+    # Load cookies
+    cookies = load_cookies()
+
+    # Check if cookies are valid
+    if cookies and cookies_valid(cookies, proxies):
+        log_output("Cookies are valid. Skipping login.", logging)
+    else:
+        # Generate TOTP code
+        totp_code = totp(totp_secret)
+
+        # Perform login
+        login_response = login(username, password, session_cookies, proxies)
+        
+        try:
+            login_response_json = login_response.json()
+            login_success = login_response_json.get('succeeded')
+            if login_response_json.get('status') == 'need_2fa':
+                log_output("2FA required. Performing 2FA login.", logging)
+                log_output(f"CODE: {totp_code}", logging)
+                login2fa_response = login2fa(totp_code, session_cookies, proxies)
+                login2fa_response_json = login2fa_response.json()
+                login_success = login2fa_response_json.get('succeeded')
+                cookies = login2fa_response.cookies
+            else:
+                cookies = login_response.cookies
+        except json.JSONDecodeError:
+            log_output(f"Login response is not in JSON format. Status code: {login_response.status_code}, Response text: {login_response.text}", logging)
+            exit(3)
+
+        log_output(f"Login response: {login_response_json}", logging)
+        if not login_success:
+            log_output("Login failure! Exiting...", logging)
+            exit(3)
+        else:
+            log_output("Login success!", logging)
+            save_cookies(cookies)
+
+    # Handle --getDNSID argument
+    if args.getDNSID:
+        get_dns_entries(cookies, proxies)
+        exit(0)
 
     # Discover IP address if required
     if discoverip == "true":
@@ -232,46 +294,6 @@ if __name__ == "__main__":
         exit(1)
 
     log_output(f"Using username: {username}", logging)
-
-    # Initialize session to retrieve cookies
-    session_cookies = init_session(proxies)
-
-    # Load cookies
-    cookies = load_cookies()
-
-    # Check if cookies are valid
-    if cookies and cookies_valid(cookies, proxies):
-        log_output("Cookies are valid. Skipping login.", logging)
-    else:
-        # Generate TOTP code
-        totp_code = totp(totp_secret)
-
-        # Perform login
-        login_response = login(username, password, session_cookies, proxies)
-        
-        try:
-            login_response_json = login_response.json()
-            login_success = login_response_json.get('succeeded')
-            if login_response_json.get('status') == 'need_2fa':
-                log_output("2FA required. Performing 2FA login.", logging)
-                log_output(f"CODE: {totp_code}", logging)
-                login2fa_response = login2fa(totp_code, session_cookies, proxies)
-                login2fa_response_json = login2fa_response.json()
-                login_success = login2fa_response_json.get('succeeded')
-                cookies = login2fa_response.cookies
-            else:
-                cookies = login_response.cookies
-        except json.JSONDecodeError:
-            log_output(f"Login response is not in JSON format. Status code: {login_response.status_code}, Response text: {login_response.text}", logging)
-            exit(3)
-
-        log_output(f"Login response: {login_response_json}", logging)
-        if not login_success:
-            log_output("Login failure! Exiting...", logging)
-            exit(3)
-        else:
-            log_output("Login success!", logging)
-            save_cookies(cookies)
 
     # Update DNS record
     update_response = update_dns_record(dnsid, ipaddress, cookies, proxies)
