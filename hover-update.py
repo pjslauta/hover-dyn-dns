@@ -52,7 +52,7 @@ def get_external_ip(proxies):
     """
     Retrieves the external IP address using the ipify API.
     """
-    response = requests.get("https://api.ipify.org", proxies=proxies, verify=False)
+    response = requests.get("https://api.ipify.org", proxies=proxies, verify=True)
     return response.text
 
 def get_dns_ip(domain):
@@ -73,7 +73,7 @@ def init_session(proxies):
     """
     Initializes a session with Hover to retrieve cookies.
     """
-    response = requests.get("https://www.hover.com/signin", proxies=proxies, verify=False)
+    response = requests.get("https://www.hover.com/signin", proxies=proxies, verify=True)
     log_output(f"Init session response status code: {response.status_code}", logging)
     log_output(f"Init session response content: {response.content}", logging)
     return response.cookies
@@ -87,7 +87,7 @@ def login(username, password, cookies, proxies):
         "password": password,
         "token": None
     }
-    response = requests.post(AUTH1URL, json=login_payload, proxies=proxies, verify=False, cookies=cookies)
+    response = requests.post(AUTH1URL, json=login_payload, proxies=proxies, verify=True, cookies=cookies)
     log_output(f"Payload: {login_payload}", logging)
     log_output(f"Login response status code: {response.status_code}", logging)
     log_output(f"Login response content: {response.content}", logging)
@@ -101,7 +101,7 @@ def login2fa(totp_code, cookies, proxies):
     login_payload = {
         "code": totp_code
     }
-    response = requests.post(AUTH2URL, json=login_payload, proxies=proxies, cookies=cookies, verify=False)
+    response = requests.post(AUTH2URL, json=login_payload, proxies=proxies, cookies=cookies, verify=True)
     log_output(f"Payload: {login_payload}", logging)
     log_output(f"Login 2FA response status code: {response.status_code}", logging)
     log_output(f"Login 2FA response content: {response.content}", logging)
@@ -115,7 +115,8 @@ def update_dns_record(dnsid, ipaddress, cookies, proxies):
     files = {
         'content': (None, ipaddress)
     }
-    response = requests.put(DNS_UPDATE_URL.format(dnsid), files=files, cookies=cookies, proxies=proxies, verify=False)
+    log_output(DNS_UPDATE_URL.format(dnsid),logging)
+    response = requests.put(DNS_UPDATE_URL.format(dnsid), files=files, cookies=cookies, proxies=proxies, verify=True)
     log_output(f"DNS update response status code: {response.status_code}", logging)
     log_output(f"DNS update response content: {response.content}", logging)
     return response
@@ -141,7 +142,7 @@ def cookies_valid(cookies, proxies):
     """
     Checks if the cookies are still valid by making a request to an authenticated endpoint.
     """
-    response = requests.get(DOMAIN_CHECK_URL, cookies=cookies, proxies=proxies, verify=False)
+    response = requests.get(DOMAIN_CHECK_URL, cookies=cookies, proxies=proxies, verify=True)
     if response.status_code == 200:
         return True
     return False
@@ -150,7 +151,7 @@ def get_dns_entries(cookies, proxies):
     """
     Retrieves the DNS entries for the account.
     """
-    response = requests.get(DNS_ENTRIES_URL, cookies=cookies, proxies=proxies, verify=False)
+    response = requests.get(DNS_ENTRIES_URL, cookies=cookies, proxies=proxies, verify=True)
     if response.status_code == 200:
         dns_entries = response.json()
         for entry in dns_entries['domains']:
